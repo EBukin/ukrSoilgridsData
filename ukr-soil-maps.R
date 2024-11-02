@@ -105,17 +105,28 @@ layers_to_get <- c(
   "cec_30-60cm_mean.vrt", 
   "cec_30-60cm_mean.vrt", 
   "cec_60-100cm_mean.vrt", 
-  "cec_100-200cm_mean.vrt"
+  "cec_100-200cm_mean.vrt",
+  "soc_0-5cm_mean.vrt", # soc	Soil organic carbon content in dg / kg
+  "soc_5-15cm_mean.vrt", 
+  "soc_15-30cm_mean.vrt",
+  "soc_30-60cm_mean.vrt", 
+  "soc_30-60cm_mean.vrt", 
+  "soc_60-100cm_mean.vrt", 
+  "soc_100-200cm_mean.vrt"
 )
 
+library(furrr)
+plan(multisession, workers = 4)
 
-layers_to_get |> 
-  walk(~{
+harvested <- list.files("data-raw/ukr/", pattern = "tif") |> str_replace(".tif", "")
+
+layers_to_get[!str_replace(layers_to_get, ".vrt", "") %in% harvested] |> 
+  future_walk(~{
     local_link <- str_c(base_url, "/",
                         str_split(.x[[1]], "_")[[1]][[1]], "/",
                         .x)
     local_file <- str_c("data-raw/ukr/", str_replace(.x, "vrt", "tif"))
-    one_layer <- raster(link)
+    one_layer <- raster(local_link)
     one_layer_croped <- crop(one_layer, ukr_extent)
     # tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=10")
     #options = tifoptions,
@@ -124,3 +135,28 @@ layers_to_get |>
     # library(stars)
     # read_stars(local_file) |> plot()
   }, .progress = TRUE)
+
+
+
+# Water content -------------------------------------------------------------
+# Manually downloaded from here:
+  
+
+# # WV0010 Vol. water content at -10 kPa
+# https://data.isric.org/geonetwork/srv/eng/catalog.search#/metadata/c6cb5073-78dd-4d8d-be81-9d546a1c004f
+# # WV0033 Volumetric Water Content at 33kPa
+# https://data.isric.org/geonetwork/srv/eng/catalog.search#/metadata/14e7c761-6f87-4f4c-9035-adb282439a44
+# # WV1500 Volumetric Water Content at 1500kPa
+# https://data.isric.org/geonetwork/srv/eng/catalog.search#/metadata/f5a1188a-09f8-4ef6-b841-93f08e3903f4
+
+
+list.files("~/../Downloads/soil-water/", pattern = "tif", full.names = T) |> 
+  walk(~{
+    local_file <- str_c("data-raw/ukr/", basename(.x))
+    raster(.x) |> crop(ukr_extent) |> writeRaster(local_file, overwrite = TRUE)
+  }, .progress = TRUE)
+
+
+
+
+
